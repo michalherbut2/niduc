@@ -30,18 +30,14 @@ class FCS:
     # Funkcja wykonująca działanie zgodnie z wybranym typem kodowania
     def decode(FCS_type, frame):
         message, footer = frame[:-2], frame[-2:]
+        bch_copy = message[:]
         switcher = {
-            # 0: [FCS.calculate_parity_bit(message) == footer, message],
             0: [FCS.compare_bits(FCS.calculate_parity_bit(message), footer, 1), message],
-            # 1: [FCS.calculate_crc4(message) == footer, message],
             1: [FCS.compare_bits(FCS.calculate_crc4(message), footer, 4), message],
-            # 2: [FCS.calculate_crc8(message) == footer, message],
             2: [FCS.compare_bits(FCS.calculate_crc8(message), footer, 8), message],
-            # 3: "Wybrano kodowanie Hamminga",
             3: [FCS.compare_bits(FCS.calculate_crc16(message), footer, 16), message],
-            4: FCS.decode_bch(message, footer)
+            4: FCS.decode_bch(bch_copy, footer)
         }
-        # return switcher.get(FCS_type, "Niepoprawny typ kodowania")
         return switcher.get(FCS_type, [False, message])
 
     @staticmethod

@@ -197,7 +197,7 @@ error_prob_bad = 0.1     # Prawdopodobieństwo błędu w złym stanie
 # Przykładowe użycie
 # channel = ChannelGilbertElliot(
 #     counter, p_good_to_bad, p_bad_to_good, error_prob_good, error_prob_bad)
-channel = Channel(counter, 0.001)
+channel = Channel(counter, 0.0002)
 
 # FCS_type = FCS.FCS_TYPE.PARITY_BIT.value
 # FCS_type = FCS.FCS_TYPE.CRC4.value

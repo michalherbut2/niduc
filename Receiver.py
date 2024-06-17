@@ -83,8 +83,14 @@ class Receiver:
             if header[2]:
                 # zapisuje obrazek
                 print("ZAPISUJE OBRAZ:::")
-                # image = Image.open(io.BytesIO(self.data_buffer))
-                # image.save("obrazek.jpg")
+                try:
+                    image = Image.open(io.BytesIO(self.data_buffer))
+                    image.save("out.jpg")
+                    
+                except Exception as e:
+                    # Jeśli wystąpił błąd, wyświetlamy komunikat o błędzie
+                    print(f"An error occurred: {e}")
+   
                 with open("out.txt", "w") as file:
                     file.write(self.data_buffer.decode('utf-8', errors='replace'))
 
