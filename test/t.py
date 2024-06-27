@@ -1,27 +1,18 @@
-import hamming_codec
+size = 5  # Rozmiar tablicy
+# data_array = [None] * size  # Inicjalizacja tablicy z wartościami None
+data_array = []  # Inicjalizacja tablicy z wartościami None
 
-# Dane wejściowe
-input_data = 0x4235
-n_bits = 16
+# # Wstawianie danych do wybranych indeksów
+# data_array[1] = 'dane1'  # Wstawienie danych do indeksu 1
+# data_array[4] = 'dane2'  # Wstawienie danych do indeksu 4
 
-# Kodowanie Hamminga
-encoded_message = hamming_codec.encode(input_data, n_bits)
-print("Encoded message:", encoded_message)
 
-# Konwersja zakodowanej wiadomości na szesnastkowy format
-encoded_message_hex = hex(int(encoded_message, 2))
-print("Encoded message (hex):", encoded_message_hex)
+def dynamic_insert(data_list, index, data):
+    # Rozszerzanie listy o 'None', jeśli indeks jest poza zakresem
+    while index >= len(data_list):
+        data_list.append(None)
+    data_list[index] = data
 
-# Wprowadzenie błędu (na przykładzie zamiany pierwszego bitu)
-corrupted_message = list(encoded_message)
-corrupted_message[0] = '1' if corrupted_message[0] == '0' else '0'
-corrupted_message = ''.join(corrupted_message)
-print("Corrupted message:", corrupted_message)
-
-# Dekodowanie Hamminga
-decoded_message = hamming_codec.decode(int(corrupted_message, 2), len(corrupted_message))
-print("Decoded message:", decoded_message)
-
-# Konwersja odkodowanej wiadomości na szesnastkowy format
-decoded_message_hex = hex(int(decoded_message, 2))
-print("Decoded message (hex):", decoded_message_hex)
+dynamic_insert(data_array, 1, "dane1")
+dynamic_insert(data_array, 4, "dane2")
+print(data_array)  # Wyświetlenie tablicy

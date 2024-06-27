@@ -2,7 +2,7 @@ import os
 import hashlib
 # import crcmod.predefined
 from Counter import Counter
-from BSC import Channel
+from BSCr import Channel
 import random
 import asyncio
 from colorama import Fore, Style
@@ -24,17 +24,16 @@ class Transmitter:
         self.counter = counter
 
         # typ sumy kontrolnej
-        # self.FCS_type = FCS.FCS_TYPE.PARITY_BIT.value
-        # self.FCS_type = FCS.FCS_TYPE.CRC4.value
-        # self.FCS_type = FCS.FCS_TYPE.CRC8.value
-        # self.FCS_type = FCS.FCS_TYPE.HAMMING.value
-        # self.FCS_type = FCS.FCS_TYPE.BCH.value
         self.FCS_type = FCS_type
 
         # rozmiar okna
         self.N = 7
-        self.SN_min = 0
-        self.SN_max = 0
+        self.window = []
+        # self.window = {}
+
+        self.SN = 0
+
+        self.is_end = False
 
         # rozmiary
         self.header_size = 4     # Rozmiar nagłówka w bajtach
@@ -69,55 +68,49 @@ class Transmitter:
         print("total", total_frames)
 
         # wysyła ramki po N ramek bez ACK
-        print("wysyłam od ", self.SN_max, " do ", self.SN_min + self.N)
+        print("wysyłam od 0 do", self.N)
 
-        while self.SN_min < total_frames:
+        
 
-            # tworzy ramkę
-            data = frame_datas[self.SN_max]
+        while not self.is_end:
+            # while len(self.window) < self.N and self.SN < total_frames:
+            while len(self.window) < self.N:
+                if self.SN > total_frames -1:
+                    print("xd")
+                    return
+                # tworzy ramkę
+                data = frame_datas[self.SN]
 
-            # tworzy nagłówek
-            is_end = self.SN_max == total_frames - 1
+                # tworzy nagłówek
+                is_end = self.SN == total_frames - 1
 
-            header = self.create_header(
-                self.SN_max, is_end, len(data), self.FCS_type)
+                header = self.create_header(
+                    self.SN, is_end, len(data), self.FCS_type)
 
-            # składa ramkę
-            frame = header + data
+                # składa ramkę
+                frame = header + data
 
-            # tworzy sumę kontrolną
-            footer = FCS.encode(self.FCS_type, frame)
+                # tworzy sumę kontrolną
+                footer = FCS.encode(self.FCS_type, frame)
 
-            # skłąda całą ramkę
-            # print(type(frame), type(footer))
-            full_frame = frame + footer
+                # skłąda całą ramkę
+                # print(type(frame), type(footer))
+                full_frame = frame + footer
 
-            await asyncio.sleep(0.01)
-            # print(full_frame)
-            # wysyła ramki bez czekania na ACK
-            asyncio.create_task(self.send_frame(full_frame))
+                await asyncio.sleep(0.01)
+                # print(full_frame)
+                # wysyła ramki bez czekania na ACK
+                asyncio.create_task(self.send_frame(full_frame))
+                self.window.append(self.SN)
+                # self.window[self.SN] = full_frame
+                print("wysłano: ", header[1])
 
-            print("wysłano: ", header[1])
-
-            self.SN_max += 1
-
-            # wysyła ponowanie ramki gdy wysłał wszystkie ramki z okna i nie dostał ACK
-            if self.SN_max > self.SN_min + self.N:
-                self.SN_max = self.SN_min
-                print("wysyłam od nowa od ", self.SN_max,
-                      " do ", self.SN_min + self.N)
-
-            # wysyła ponownie ramki z okna gdy już nie ma więcej niewysłanych
-            if self.SN_max == total_frames:
-                self.SN_max = self.SN_min
-                print("wysyłam od nowa od ", self.SN_max,
-                      " do ", self.SN_min + self.N)
-
-            # wysyła ramki z nowego okna po ACK
-            if self.SN_min > self.SN_max:
-                self.SN_max = self.SN_min
-                print("wysyłam od nowa od ", self.SN_max,
-                      " do ", self.SN_min + self.N)
+                self.SN += 1
+            # print(self.window)
+            
+            # if len(self.window) == self.N:
+            #     for frame in self.window:
+            #         asyncio.create_task(self.send_frame(frame))
 
     # wysyła ramkę
 
@@ -130,7 +123,8 @@ class Transmitter:
         self.counter.inc_sent()
 
         # jeśli dostaje odpoweidź
-        if response and response[1] > self.SN_min and response[1] < self.SN_min + self.N:
+        # if response and response[1] > self.SN_min and response[1] < self.SN_min + self.N:
+        if response:
             is_error = response[-1]
             response = response[:-1]
             header, data, footer = self.extract_data(response)
@@ -142,7 +136,11 @@ class Transmitter:
             if not isCorrect:
                 # zlicza błędną ramkę
                 self.counter.inc_ack_error()
+                # self.send_frame(self, frame)
+                asyncio.create_task(self.send_frame(frame))
+
                 return print("błąd w ack")
+            
 
             if is_error and self.FCS_type != 4:
                 print("                 NO TO ŁADNIE błąd przyjęty przez nadajnik")
@@ -150,6 +148,12 @@ class Transmitter:
 
             # zlicza poprawną ramkę
             self.counter.inc_ok()
+            try:
+                self.window.remove(response[1]-1)
+                # self.window.pop(response[1]-1)
+            except ValueError:
+                print(f"The element {response[1]-1} was not found in the list.")
+                print(self.window)
 
             # przesuwa okno
             self.SN_min = response[1]
@@ -158,7 +162,12 @@ class Transmitter:
                   "nowe okno", self.SN_min, "-", self.SN_min + self.N)
             if response[2]:
                 print(Fore.GREEN + "Dostałem wszystkie ack (:")
+                self.is_end = True
+                print(self.window)
             print(Style.RESET_ALL)
+        else:
+            asyncio.create_task(self.send_frame(frame))
+
 
     # Tworzy nagłówek
     # header [rozmiar ramki, numer ramki, czy ostatnia ramka, typ FCS]
@@ -202,8 +211,8 @@ channel = Channel(counter, 0.001)
 # FCS_type = FCS.FCS_TYPE.PARITY_BIT.value
 # FCS_type = FCS.FCS_TYPE.CRC4.value
 # FCS_type = FCS.FCS_TYPE.CRC8.value
-# FCS_type = FCS.FCS_TYPE.HAMMING.value
-FCS_type = FCS.FCS_TYPE.BCH.value
+FCS_type = FCS.FCS_TYPE.HAMMING.value
+# FCS_type = FCS.FCS_TYPE.BCH.value
 
 transmitter = Transmitter(image_path, channel, counter, FCS_type)
 asyncio.run(transmitter.send_frames())
